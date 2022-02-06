@@ -36,7 +36,7 @@ make_summary_request <- function(uids) {
   query <- list(
     db = "snp",
     api_key = options()$reutils.api.key,
-    email = "Ali.Sajid@rockets.utoledo.edu",
+    email = options()$reutils.email,
     tool = "SNPInformant",
     id = str_c(uids, collapse = ","),
     retmode = "json",
@@ -74,10 +74,10 @@ parse_results <- function(json) {
 
 
 if (file.exists("data/snp_locations.csv")) {
-  dataset <- read_csv("data/snp_locations.csv")
+  dataset <- read_csv("data/snp_locations.csv", col_types = cols(.default = col_character()))
 } else {
   dataset <-
-    map(seq(1, nrow(uids), 300), ~ get_summary_data(uids, .x, 300), ) |>
+    map(seq(1, nrow(uids), 112), ~ get_summary_data(uids, .x, 112), ) |>
     map( ~ content(.x, as = "text", encoding = "UTF-8")) |>
     map_dfr( ~ parse_results(.x)) |>
     write_csv("data/snp_locations.csv")
