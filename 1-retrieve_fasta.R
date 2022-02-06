@@ -9,6 +9,10 @@ options(reutils.email = "Ali.Imami@rockets.utoledo.edu",
 retmode <- "text"
 rettype <- "fasta"
 
-fasta <- efetch("NC_000016.9", db = "nuccore", rettype = fasta, retmode = retmode)
+fasta <- efetch(c("NC_000016.9"), db = "nuccore", rettype = rettype, retmode = retmode)
 
 write(fasta$content, "data/NC_000016.9.fasta")
+
+fasta <- efetch(c("NC_000016.10"), db = "nuccore", rettype = rettype, retmode = retmode)
+
+write(fasta$content, "data/NC_000016.10.fasta")
