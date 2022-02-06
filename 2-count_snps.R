@@ -16,7 +16,10 @@ snp_locations <-
   select(-chrpos_hg38) |>
   mutate(chrpos = chrpos_hg37)
 
-uce_spans <- read_csv("data/uce_coordinates.csv")
+uce_spans <- read_csv("data/uce_coordinates.csv") |>
+  select(uce, contains("37"), length) |>
+  rename_with(~ str_remove(.x, "_hg37"))
+
 
 
 count_snps <- function(uce, start_pos, end_pos, length) {
@@ -35,7 +38,7 @@ generate_random_interval <-
            end = 54158512) {
     start <- sample(start:(end - length), 1)
     out <- list(
-      uce = str_replace(uce, "U", "X"),
+      uce = str_c(uce, str_replace(uce, "U", "X"), sep = "-"),
       start_pos = start,
       end_pos = start + length - 1,
       length = length
@@ -62,21 +65,29 @@ res <- t.test(x, mu = mean, alternative = alternative)
 res
 }
 
+uce_randoms <- uce_spans |>
+  mutate(randoms = map2(uce, length, ~ generate_samples(1000, .x, .y)),
+         filename = str_glue("data/{uce}-samples_snp_count_data.csv"),
+         counted_randoms = map(randoms, \(x) {
+           x |> mutate(snp_count = pmap_dbl(
+             list(uce, start_pos, end_pos, length),
+             ~ count_snps(..1, ..2, ..3, ..4)
+           ))
+         })
+         ) |>
+  mutate(x = map2(counted_randoms, filename, ~ write_csv(.x, .y)),) |>
+  select(-x, -filename, -randoms)
+
+
+
 uce_data <- uce_spans |>
   mutate(
     snp_count = pmap_dbl(
       list(uce, start_pos, end_pos, length),
       ~ count_snps(..1, ..2, ..3, ..4)
-    ),
-    randoms = pmap(list(uce, length), ~ generate_samples(1000, ..1, ..2)),
-    counted_randoms = map(randoms, \(x) {
-      x |> mutate(snp_count = pmap_dbl(
-        list(uce, start_pos, end_pos, length),
-        ~ count_snps(..1, ..2, ..3, ..4)
-      ))
-    })
-  ) |>
-  select(-randoms) |>
+    )) |>
+  write_csv("data/uce_snp_count_data.csv") |>
+  inner_join(uce_randoms, by = c("uce", "start_pos", "end_pos", "length")) |>
   expand_grid(alternative = c("two.sided", "less", "greater")) |>
   mutate(comparison_results = pmap(list(counted_randoms, snp_count, alternative), ~ t_test_comparison(..1, ..2, ..3)),
          results = map(comparison_results, glance)) |>
